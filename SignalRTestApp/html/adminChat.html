@@ -1,0 +1,93 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>SignalR chat</title>
+</head>
+<body>
+    <div id="chatContainer" align="center">
+        <div id="userAccount">
+            <p><a href="logout">Log out</a></p>
+        </div>
+        <div style="width: 600px;">
+            <div id="chatBody" align="left"></div>
+            <div id="inputForm" style="display: inline-flex;">
+                <input type="text" id="message" style="width: 540px" />
+                <div id="messageButtons">
+                    <input type="button" id="sendBtn" value="Отправить" disabled="disabled"  />
+                    <input type="button" id="notifyBtn" value="Уведомить" disabled="disabled" style="margin-top:4px"/>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        #chatBody {
+            height: 800px;
+            overflow-y: auto;
+            overscroll-behavior-y: auto;
+            border: solid;
+            margin-bottom: 8px;
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
+    <script>
+        const hubConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/chat")
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        function updateButtonAvailability() {
+            let msgElement = document.getElementById("message");
+            let sendBtn = document.getElementById("sendBtn");
+            let notifyBtn = document.getElementById("notifyBtn");
+            sendBtn.disabled = (msgElement.value == "");
+            notifyBtn.disabled = (msgElement.value == "");
+        };
+
+        document.getElementById("sendBtn").addEventListener(
+            "click",
+            function () {
+                let message = document.getElementById("message").value;
+                hubConnection.invoke("SendMessage", message)
+                    .catch(function (err) {
+                        return console.error(err.toString());
+                    });
+            });
+        document.getElementById("notifyBtn").addEventListener(
+            "click",
+            function () {
+                let message = document.getElementById("message").value;
+                hubConnection.invoke("Notify", message)
+                    .catch(function (err) {
+                        return console.error(err.toString());
+                    });
+            });
+        document.getElementById("message").addEventListener(
+            "change",
+            updateButtonAvailability);
+
+        hubConnection.on("ReceiveMessage", function (message, userName) {
+            let chatElement = document.getElementById("chatBody");
+            const userNameElement = document.createElement("b");
+            userNameElement.textContent = `${userName}: `;
+            const msgElement = document.createElement("p");
+            msgElement.appendChild(userNameElement);
+            msgElement.appendChild(document.createTextNode(message));
+            chatElement.appendChild(msgElement);
+        });
+
+        hubConnection.on("Notify", function (message) {
+            let chatElement = document.getElementById("chatBody");
+            const notification = document.createElement("p");
+            notification.appendChild(document.createTextNode(message));
+            notification.style.textAlign = "center";
+            chatElement.appendChild(notification);
+        });
+
+        hubConnection.start()
+            .then(updateButtonAvailability);
+    </script>
+</body>
+</html>
